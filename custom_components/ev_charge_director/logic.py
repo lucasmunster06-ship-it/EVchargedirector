@@ -466,8 +466,8 @@ def read_history(base_dir: str, max_sessions: int | None = 30, month: str | None
                 if i == 0 or len(row) < 4:
                     continue
                 kwh, cost, avg = _clean_num(row[1]), _clean_num(row[2]), _clean_num(row[3])
-                if kwh is None or cost is None:
-                    continue
+                if kwh is None or cost is None or kwh <= 0:
+                    continue  # lege sessies (aangesloten zonder te laden) tellen niet mee
                 avg = avg if avg is not None else (cost / kwh if kwh else 0)
                 agg["kwh"] += kwh
                 agg["cost"] += cost
