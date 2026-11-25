@@ -232,7 +232,44 @@ class EVChargeManager:
         entry = self.status_map.get(key) or self.status_map.get(str(st.state).strip().lower())
         if entry is None:
             return {"raw": st.state, "category": CAT_UNKNOWN, "label": str(st.state)}
-        return {"raw": st.state, "category": entry.category, "label": entry.label}
+        result = {"raw": st.state, "category": entry.category, "label": entry.label}
+        if entry.category == CAT_FINISHED:
+            result.update(self._finished_detail())
+        return result
+
+    def _finished_detail(self) -> dict[str, Any]:
+        """'Voltooid' van de laadpaal controleren met de gegevens van de auto.
+
+        Veel laadpalen melden 'voltooid' zodra er niet meer geladen wordt, ook na
+        een stop-commando. Pas als de auto zijn laaddoel heeft bereikt is het echt klaar.
+        """
+        sm = self.data["smart"]
+        soc = self.car_soc(self.car)
+        target = None
+        if soc is not None:
+            target = float(sm["target_soc"]) if self.car.capacity_kwh else 100.0
+            limit = self._car_limit()
+            if limit is not None:
+                target = min(target, limit)
+        if soc is not None and target is not None and soc >= target - 1:
+            return {"label": f"Opladen voltooid · {soc:.0f}%"}
+        if sm.get("stopped_by_us"):
+            label = "Gepauzeerd · wacht op goedkoop moment" if sm.get("enabled") and not sm.get("override") else "Gestopt"
+            if soc is not None:
+                label += f" · {soc:.0f}%"
+            return {"category": CAT_PAUSED, "label": label}
+        if soc is not None:
+            return {"category": CAT_PAUSED, "label": f"Gestopt door auto · {soc:.0f}%"}
+        return {}
+
+    def _car_limit(self) -> float | None:
+        """Eigen laadlimiet van de auto, als die bij de extra entiteiten staat."""
+        for eid in self.car.extra:
+            if "limit" in eid or "limiet" in eid or "streefniveau" in eid or "target" in eid:
+                v = self._value(self.hass.states.get(eid))
+                if v is not None and 0 < v <= 100:
+                    return v
+        return None
 
     @property
     def category(self) -> str:
