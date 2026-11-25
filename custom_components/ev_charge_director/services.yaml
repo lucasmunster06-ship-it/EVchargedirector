@@ -1,0 +1,76 @@
+start_charging:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+stop_charging:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+clear_override:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+next_car:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+select_car:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+    car:
+      required: true
+      example: Tesla
+      selector:
+        text: {}
+set_smart_charging:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+    enabled:
+      selector:
+        boolean: {}
+    ready_time:
+      example: 07:00:00
+      selector:
+        time: {}
+    target_kwh:
+      selector:
+        number:
+          min: 0
+          max: 200
+          step: 0.5
+          unit_of_measurement: kWh
+    target_soc:
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 5
+          unit_of_measurement: '%'
+send_monthly_report:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: ev_charge_director
+    car:
+      example: Tesla
+      selector:
+        text: {}
+    month:
+      example: 2026-10
+      selector:
+        text: {}

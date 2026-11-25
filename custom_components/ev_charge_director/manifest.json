@@ -1,0 +1,14 @@
+{
+  "domain": "ev_charge_director",
+  "name": "EV Charge Director",
+  "after_dependencies": ["lovelace"],
+  "codeowners": ["@lucasmunster06-ship-it"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend", "websocket_api"],
+  "documentation": "https://github.com/lucasmunster06-ship-it/EVchargedirector",
+  "integration_type": "device",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/lucasmunster06-ship-it/EVchargedirector/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

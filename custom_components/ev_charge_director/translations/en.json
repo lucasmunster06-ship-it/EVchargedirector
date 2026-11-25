@@ -1,0 +1,373 @@
+{
+  "title": "EV Charge Director",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Link charger",
+        "description": "Pick your charger's sensors. Only status is required.",
+        "data": {
+          "name": "Charge point name",
+          "status_entity": "Charger status sensor",
+          "energy_entity": "Energy meter (kWh, increasing; daily counter ok)",
+          "power_entity": "Charging power (W or kW)",
+          "price_entity": "Current electricity price",
+          "forecast_entity": "Price forecast (optional, if not in the price sensor)"
+        },
+        "data_description": {
+          "status_entity": "Any sensor with a status. Next step maps its values to a meaning.",
+          "energy_entity": "Leave empty to calculate energy from power.",
+          "price_entity": "€/kWh or ct/kWh, converted automatically.",
+          "forecast_entity": "Sensor with today's/tomorrow's prices in an attribute. Empty = use the price sensor."
+        }
+      },
+      "control": {
+        "title": "Control",
+        "description": "Needed to start/stop and for smart charging.",
+        "data": {
+          "start_entity": "Start charging (button, switch or script)",
+          "stop_entity": "Stop charging (button or script; empty for a switch)",
+          "can_start_entity": "Start allowed (optional)",
+          "can_stop_entity": "Stop allowed (optional)"
+        }
+      },
+      "status": {
+        "title": "Status values",
+        "data": {
+          "status_map": "Status values",
+          "end_categories": "Finish session on"
+        },
+        "data_description": {
+          "status_map": "One line per value: `value | category | label`. Categories: disconnected, connected, charging, paused, finished, error."
+        }
+      },
+      "cars": {
+        "title": "Cars",
+        "data": {
+          "cars": "Cars"
+        },
+        "data_description": {
+          "cars": "One car per line: `Name | notify.service | SoC sensor | battery kWh`. Only the name is required."
+        }
+      }
+    },
+    "error": {
+      "status_map_format": "Each line needs at least `value | category`.",
+      "status_map_category": "Unknown category.",
+      "status_map_empty": "Add at least one status value.",
+      "cars_format": "Each line must start with a name.",
+      "cars_notify": "Second column must be a notify service.",
+      "cars_soc": "Third column must be an entity.",
+      "cars_capacity": "Fourth column must be the battery capacity in kWh."
+    },
+    "abort": {
+      "already_configured": "Already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "menu_options": {
+          "sources": "Sources",
+          "control": "Control",
+          "status": "Status values",
+          "cars": "Cars",
+          "smart": "Smart charging",
+          "storage": "Storage & monthly report"
+        }
+      },
+      "sources": {
+        "title": "Sources",
+        "data": {
+          "status_entity": "Charger status sensor",
+          "energy_entity": "Energy meter (kWh, increasing; daily counter ok)",
+          "power_entity": "Charging power (W or kW)",
+          "price_entity": "Current electricity price",
+          "forecast_entity": "Price forecast (optional, if not in the price sensor)"
+        },
+        "data_description": {
+          "status_entity": "Any sensor with a status. Next step maps its values to a meaning.",
+          "energy_entity": "Leave empty to calculate energy from power.",
+          "price_entity": "€/kWh or ct/kWh, converted automatically.",
+          "forecast_entity": "Sensor with today's/tomorrow's prices in an attribute. Empty = use the price sensor."
+        }
+      },
+      "control": {
+        "title": "Control",
+        "description": "Needed to start/stop and for smart charging.",
+        "data": {
+          "start_entity": "Start charging (button, switch or script)",
+          "stop_entity": "Stop charging (button or script; empty for a switch)",
+          "can_start_entity": "Start allowed (optional)",
+          "can_stop_entity": "Stop allowed (optional)"
+        }
+      },
+      "status": {
+        "title": "Status values",
+        "data": {
+          "status_map": "Status values",
+          "end_categories": "Finish session on"
+        },
+        "data_description": {
+          "status_map": "One line per value: `value | category | label`. Categories: disconnected, connected, charging, paused, finished, error."
+        }
+      },
+      "cars": {
+        "title": "Cars",
+        "data": {
+          "cars": "Cars"
+        },
+        "data_description": {
+          "cars": "One car per line: `Name | notify.service | SoC sensor | battery kWh`. Only the name is required."
+        }
+      },
+      "smart": {
+        "title": "Smart charging",
+        "data": {
+          "max_power_kw": "Charging power used for planning",
+          "safety_margin_min": "Safety margin before deadline"
+        },
+        "data_description": {
+          "max_power_kw": "Used to calculate the hours needed."
+        }
+      },
+      "storage": {
+        "title": "Storage & monthly report",
+        "data": {
+          "csv_enabled": "Store sessions as CSV",
+          "csv_dir": "Folder (relative to /config)",
+          "report_day": "Monthly report on day",
+          "report_hour": "Monthly report at hour"
+        },
+        "data_description": {
+          "csv_dir": "Note: anything under `www` is reachable without login via /local/."
+        }
+      }
+    },
+    "error": {
+      "status_map_format": "Each line needs at least `value | category`.",
+      "status_map_category": "Unknown category.",
+      "status_map_empty": "Add at least one status value.",
+      "cars_format": "Each line must start with a name.",
+      "cars_notify": "Second column must be a notify service.",
+      "cars_soc": "Third column must be an entity.",
+      "cars_capacity": "Fourth column must be the battery capacity in kWh."
+    }
+  },
+  "selector": {
+    "category": {
+      "options": {
+        "disconnected": "Disconnected / available",
+        "connected": "Car connected",
+        "charging": "Charging",
+        "paused": "Paused",
+        "finished": "Finished / full",
+        "error": "Error"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status"
+      },
+      "power": {
+        "name": "Charging power"
+      },
+      "price": {
+        "name": "Electricity price"
+      },
+      "session_energy": {
+        "name": "Session energy"
+      },
+      "session_cost": {
+        "name": "Session cost"
+      },
+      "session_start": {
+        "name": "Session start"
+      },
+      "last_energy": {
+        "name": "Last session energy"
+      },
+      "last_cost": {
+        "name": "Last session cost"
+      },
+      "last_duration": {
+        "name": "Last session duration"
+      },
+      "last_avg_price": {
+        "name": "Last session avg. price"
+      },
+      "plan_status": {
+        "name": "Plan",
+        "state": {
+          "off": "Off",
+          "waiting": "Waiting for car",
+          "scheduled": "Scheduled",
+          "charging": "Charging",
+          "done": "Done"
+        }
+      },
+      "plan_next_start": {
+        "name": "Plan next start"
+      },
+      "plan_expected_cost": {
+        "name": "Plan expected cost"
+      },
+      "plan_needed_energy": {
+        "name": "Plan energy needed"
+      },
+      "month": {
+        "name": "{car} last month"
+      }
+    },
+    "binary_sensor": {
+      "session_active": {
+        "name": "Session active"
+      },
+      "charging": {
+        "name": "Charging"
+      }
+    },
+    "switch": {
+      "smart_charging": {
+        "name": "Smart charging"
+      }
+    },
+    "select": {
+      "car": {
+        "name": "Car"
+      }
+    },
+    "number": {
+      "target_energy": {
+        "name": "Charge target kWh"
+      },
+      "target_soc": {
+        "name": "Charge target %"
+      }
+    },
+    "time": {
+      "ready_time": {
+        "name": "Ready by"
+      }
+    },
+    "button": {
+      "start": {
+        "name": "Start charging"
+      },
+      "stop": {
+        "name": "Stop charging"
+      },
+      "next_car": {
+        "name": "Next car"
+      },
+      "resume_plan": {
+        "name": "Resume plan"
+      },
+      "monthly_report": {
+        "name": "Send monthly report"
+      }
+    }
+  },
+  "services": {
+    "start_charging": {
+      "name": "Start charging",
+      "description": "Start now.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        }
+      }
+    },
+    "stop_charging": {
+      "name": "Stop charging",
+      "description": "Stop now.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        }
+      }
+    },
+    "clear_override": {
+      "name": "Resume plan",
+      "description": "Let smart charging decide again.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        }
+      }
+    },
+    "next_car": {
+      "name": "Next car",
+      "description": "Select next car.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        }
+      }
+    },
+    "select_car": {
+      "name": "Select car",
+      "description": "Select which car is charging.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        },
+        "car": {
+          "name": "Car",
+          "description": "Name as configured."
+        }
+      }
+    },
+    "set_smart_charging": {
+      "name": "Set smart charging",
+      "description": "Configure smart charging.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "On or off."
+        },
+        "ready_time": {
+          "name": "Ready by",
+          "description": "Time the car must be ready."
+        },
+        "target_kwh": {
+          "name": "Target kWh",
+          "description": "kWh to add (cars without SoC)."
+        },
+        "target_soc": {
+          "name": "Target %",
+          "description": "Target SoC."
+        }
+      }
+    },
+    "send_monthly_report": {
+      "name": "Send monthly report",
+      "description": "Send the monthly report now.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Charge point",
+          "description": "Only needed with multiple charge points."
+        },
+        "car": {
+          "name": "Car",
+          "description": "Empty = all cars."
+        },
+        "month": {
+          "name": "Month",
+          "description": "YYYY-MM, empty = last month."
+        }
+      }
+    }
+  }
+}

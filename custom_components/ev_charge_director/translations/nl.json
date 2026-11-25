@@ -1,0 +1,373 @@
+{
+  "title": "EV Charge Director",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Laadpaal koppelen",
+        "description": "Kies de sensoren van je laadpaal. Alleen de status is verplicht.",
+        "data": {
+          "name": "Naam van het laadpunt",
+          "status_entity": "Statussensor van de laadpaal",
+          "energy_entity": "Energiemeter (kWh, oplopend; dagteller mag)",
+          "power_entity": "Laadvermogen (W of kW)",
+          "price_entity": "Actuele stroomprijs",
+          "forecast_entity": "Prijsvoorspelling (optioneel, als die niet in de prijssensor zit)"
+        },
+        "data_description": {
+          "status_entity": "Elke sensor met een status. In de volgende stap koppel je de waarden aan een betekenis.",
+          "energy_entity": "Leeg laten? Dan wordt de energie berekend uit het vermogen.",
+          "price_entity": "€/kWh of ct/kWh, wordt automatisch omgerekend.",
+          "forecast_entity": "Sensor met de prijzen van vandaag/morgen in een attribuut (Frank Energie, Nordpool, ENTSO-e, Tibber-template, ...). Leeg = de prijssensor zelf."
+        }
+      },
+      "control": {
+        "title": "Bediening",
+        "description": "Nodig om te kunnen starten/stoppen en voor slim laden.",
+        "data": {
+          "start_entity": "Laden starten (knop, schakelaar of script)",
+          "stop_entity": "Laden stoppen (knop of script; leeg bij een schakelaar)",
+          "can_start_entity": "Mag starten (optioneel)",
+          "can_stop_entity": "Mag stoppen (optioneel)"
+        }
+      },
+      "status": {
+        "title": "Statuswaarden",
+        "data": {
+          "status_map": "Statuswaarden",
+          "end_categories": "Sessie afronden bij"
+        },
+        "data_description": {
+          "status_map": "Eén regel per waarde: `waarde | categorie | label`. Categorieën: disconnected, connected, charging, paused, finished, error."
+        }
+      },
+      "cars": {
+        "title": "Auto's",
+        "data": {
+          "cars": "Auto's"
+        },
+        "data_description": {
+          "cars": "Eén auto per regel: `Naam | notify.dienst | SoC-sensor | accu kWh`. Alleen de naam is verplicht. Met SoC-sensor en accucapaciteit plant slim laden op laadpercentage, anders op kWh."
+        }
+      }
+    },
+    "error": {
+      "status_map_format": "Elke regel moet minstens `waarde | categorie` zijn.",
+      "status_map_category": "Onbekende categorie. Gebruik disconnected, connected, charging, paused, finished of error.",
+      "status_map_empty": "Voeg minstens één statuswaarde toe.",
+      "cars_format": "Elke regel moet met een naam beginnen.",
+      "cars_notify": "De tweede kolom moet een notify-dienst zijn, bijv. notify.mobile_app_telefoon.",
+      "cars_soc": "De derde kolom moet een entiteit zijn, bijv. sensor.tesla_battery.",
+      "cars_capacity": "De vierde kolom moet de accucapaciteit in kWh zijn."
+    },
+    "abort": {
+      "already_configured": "Deze laadpaal is al gekoppeld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Instellingen",
+        "menu_options": {
+          "sources": "Bronnen (sensoren)",
+          "control": "Bediening",
+          "status": "Statuswaarden",
+          "cars": "Auto's",
+          "smart": "Slim laden",
+          "storage": "Opslag & maandrapport"
+        }
+      },
+      "sources": {
+        "title": "Bronnen",
+        "data": {
+          "status_entity": "Statussensor van de laadpaal",
+          "energy_entity": "Energiemeter (kWh, oplopend; dagteller mag)",
+          "power_entity": "Laadvermogen (W of kW)",
+          "price_entity": "Actuele stroomprijs",
+          "forecast_entity": "Prijsvoorspelling (optioneel, als die niet in de prijssensor zit)"
+        },
+        "data_description": {
+          "status_entity": "Elke sensor met een status. In de volgende stap koppel je de waarden aan een betekenis.",
+          "energy_entity": "Leeg laten? Dan wordt de energie berekend uit het vermogen.",
+          "price_entity": "€/kWh of ct/kWh, wordt automatisch omgerekend.",
+          "forecast_entity": "Sensor met de prijzen van vandaag/morgen in een attribuut (Frank Energie, Nordpool, ENTSO-e, Tibber-template, ...). Leeg = de prijssensor zelf."
+        }
+      },
+      "control": {
+        "title": "Bediening",
+        "description": "Nodig om te kunnen starten/stoppen en voor slim laden.",
+        "data": {
+          "start_entity": "Laden starten (knop, schakelaar of script)",
+          "stop_entity": "Laden stoppen (knop of script; leeg bij een schakelaar)",
+          "can_start_entity": "Mag starten (optioneel)",
+          "can_stop_entity": "Mag stoppen (optioneel)"
+        }
+      },
+      "status": {
+        "title": "Statuswaarden",
+        "data": {
+          "status_map": "Statuswaarden",
+          "end_categories": "Sessie afronden bij"
+        },
+        "data_description": {
+          "status_map": "Eén regel per waarde: `waarde | categorie | label`. Categorieën: disconnected, connected, charging, paused, finished, error."
+        }
+      },
+      "cars": {
+        "title": "Auto's",
+        "data": {
+          "cars": "Auto's"
+        },
+        "data_description": {
+          "cars": "Eén auto per regel: `Naam | notify.dienst | SoC-sensor | accu kWh`. Alleen de naam is verplicht. Met SoC-sensor en accucapaciteit plant slim laden op laadpercentage, anders op kWh."
+        }
+      },
+      "smart": {
+        "title": "Slim laden",
+        "data": {
+          "max_power_kw": "Laadvermogen voor de planning",
+          "safety_margin_min": "Veiligheidsmarge voor de deadline"
+        },
+        "data_description": {
+          "max_power_kw": "Hiermee wordt berekend hoeveel uur laden nodig is."
+        }
+      },
+      "storage": {
+        "title": "Opslag & maandrapport",
+        "data": {
+          "csv_enabled": "Sessies opslaan als CSV",
+          "csv_dir": "Map (relatief aan /config)",
+          "report_day": "Maandrapport op dag",
+          "report_hour": "Maandrapport om (uur)"
+        },
+        "data_description": {
+          "csv_dir": "Let op: alles onder `www` is zonder inloggen op te vragen via /local/. Bestaande map van het package: `www/laadpaal`."
+        }
+      }
+    },
+    "error": {
+      "status_map_format": "Elke regel moet minstens `waarde | categorie` zijn.",
+      "status_map_category": "Onbekende categorie. Gebruik disconnected, connected, charging, paused, finished of error.",
+      "status_map_empty": "Voeg minstens één statuswaarde toe.",
+      "cars_format": "Elke regel moet met een naam beginnen.",
+      "cars_notify": "De tweede kolom moet een notify-dienst zijn, bijv. notify.mobile_app_telefoon.",
+      "cars_soc": "De derde kolom moet een entiteit zijn, bijv. sensor.tesla_battery.",
+      "cars_capacity": "De vierde kolom moet de accucapaciteit in kWh zijn."
+    }
+  },
+  "selector": {
+    "category": {
+      "options": {
+        "disconnected": "Geen auto / beschikbaar",
+        "connected": "Auto verbonden",
+        "charging": "Laden",
+        "paused": "Gepauzeerd",
+        "finished": "Klaar / vol",
+        "error": "Storing"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status"
+      },
+      "power": {
+        "name": "Laadvermogen"
+      },
+      "price": {
+        "name": "Stroomprijs"
+      },
+      "session_energy": {
+        "name": "Sessie energie"
+      },
+      "session_cost": {
+        "name": "Sessie kosten"
+      },
+      "session_start": {
+        "name": "Sessie start"
+      },
+      "last_energy": {
+        "name": "Laatste sessie energie"
+      },
+      "last_cost": {
+        "name": "Laatste sessie kosten"
+      },
+      "last_duration": {
+        "name": "Laatste sessie duur"
+      },
+      "last_avg_price": {
+        "name": "Laatste sessie gem. prijs"
+      },
+      "plan_status": {
+        "name": "Planning",
+        "state": {
+          "off": "Uit",
+          "waiting": "Wacht op auto",
+          "scheduled": "Gepland",
+          "charging": "Laden",
+          "done": "Klaar"
+        }
+      },
+      "plan_next_start": {
+        "name": "Planning volgende start"
+      },
+      "plan_expected_cost": {
+        "name": "Planning verwachte kosten"
+      },
+      "plan_needed_energy": {
+        "name": "Planning nog nodig"
+      },
+      "month": {
+        "name": "{car} vorige maand"
+      }
+    },
+    "binary_sensor": {
+      "session_active": {
+        "name": "Laadsessie actief"
+      },
+      "charging": {
+        "name": "Laden"
+      }
+    },
+    "switch": {
+      "smart_charging": {
+        "name": "Slim laden"
+      }
+    },
+    "select": {
+      "car": {
+        "name": "Auto"
+      }
+    },
+    "number": {
+      "target_energy": {
+        "name": "Laaddoel kWh"
+      },
+      "target_soc": {
+        "name": "Laaddoel %"
+      }
+    },
+    "time": {
+      "ready_time": {
+        "name": "Klaar om"
+      }
+    },
+    "button": {
+      "start": {
+        "name": "Start laden"
+      },
+      "stop": {
+        "name": "Stop laden"
+      },
+      "next_car": {
+        "name": "Volgende auto"
+      },
+      "resume_plan": {
+        "name": "Planning hervatten"
+      },
+      "monthly_report": {
+        "name": "Maandrapport versturen"
+      }
+    }
+  },
+  "services": {
+    "start_charging": {
+      "name": "Start laden",
+      "description": "Start direct. Met slim laden aan: nu laden tot de sessie klaar is.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        }
+      }
+    },
+    "stop_charging": {
+      "name": "Stop laden",
+      "description": "Stop direct. Met slim laden aan: gepauzeerd tot je de planning hervat.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        }
+      }
+    },
+    "clear_override": {
+      "name": "Planning hervatten",
+      "description": "Laat slim laden weer zelf beslissen.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        }
+      }
+    },
+    "next_car": {
+      "name": "Volgende auto",
+      "description": "Kies de volgende auto in de lijst.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        }
+      }
+    },
+    "select_car": {
+      "name": "Auto kiezen",
+      "description": "Kies welke auto er laadt.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        },
+        "car": {
+          "name": "Auto",
+          "description": "Naam zoals ingesteld."
+        }
+      }
+    },
+    "set_smart_charging": {
+      "name": "Slim laden instellen",
+      "description": "Zet slim laden aan/uit en stel de deadline en het laaddoel in.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        },
+        "enabled": {
+          "name": "Aan",
+          "description": "Slim laden aan of uit."
+        },
+        "ready_time": {
+          "name": "Klaar om",
+          "description": "Tijd waarop de auto geladen moet zijn."
+        },
+        "target_kwh": {
+          "name": "Laaddoel kWh",
+          "description": "Hoeveel kWh er bij moet (auto's zonder SoC-sensor)."
+        },
+        "target_soc": {
+          "name": "Laaddoel %",
+          "description": "Gewenst laadpercentage (auto's met SoC-sensor)."
+        }
+      }
+    },
+    "send_monthly_report": {
+      "name": "Maandrapport versturen",
+      "description": "Stuur het maandrapport nu.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Laadpunt",
+          "description": "Alleen nodig bij meerdere laadpunten."
+        },
+        "car": {
+          "name": "Auto",
+          "description": "Leeg = alle auto's."
+        },
+        "month": {
+          "name": "Maand",
+          "description": "JJJJ-MM, leeg = vorige maand."
+        }
+      }
+    }
+  }
+}
