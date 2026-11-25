@@ -11,7 +11,7 @@
  * om de bijbehorende entiteit te openen.
  */
 const DOMAIN = "ev_charge_director";
-const VERSION = "0.4.1";
+const VERSION = "0.5.0";
 
 // Kleuren uit het actieve Home Assistant-thema (zelfde als Thermostat Timeline)
 const CAT = {
@@ -264,7 +264,6 @@ class EVChargeDirectorCard extends HTMLElement {
     if (!this._shell) {
       root.innerHTML = `${this._styles()}
         <ha-card data-cols="${this._cols}">
-          <div class="header" data-s="header"></div>
           <div class="cols">
             <div class="col">
               <div data-s="hero"></div><div data-s="power"></div><div data-s="tiles"></div>
@@ -296,7 +295,6 @@ class EVChargeDirectorCard extends HTMLElement {
     const editing = root.activeElement && root.activeElement.tagName === "INPUT";
     this._pendingRender = editing;
     const sections = {
-      header: this._header(d, cat),
       hero: this._hero(d),
       power: this._powerState(d),
       tiles: this._tiles(d),
@@ -312,19 +310,6 @@ class EVChargeDirectorCard extends HTMLElement {
     };
     if (!editing) sections.plan = this._plan(d);
     for (const [k, html] of Object.entries(sections)) this._setSection(k, html);
-  }
-
-  _header(d, cat) {
-    const sm = d.smart || {};
-    return `
-      <div class="title"><ha-icon icon="mdi:ev-station"></ha-icon><span class="title-text">${esc(this._config.title || d.name || "Laadpaal")}</span></div>
-      <div class="center"><span class="pill click" data-entity="${esc(this._e("status"))}"><span class="pdot" style="background:${CAT[cat] || CAT.unknown}"></span>${esc(
-        d.status?.label
-      )}</span></div>
-      <div class="spacer">
-        <span class="pill click" data-entity="${esc(this._e("price"))}">${isNum(d.price) ? eur(d.price, 3) + "/kWh" : "–"}</span>
-        <span class="pill click ${sm.enabled ? "success" : ""}" data-entity="${esc(this._e("smart_charging"))}">Slim laden ${sm.enabled ? "aan" : "uit"}</span>
-      </div>`;
   }
 
   _hero(d) {
@@ -678,9 +663,11 @@ class EVChargeDirectorCard extends HTMLElement {
         return `<div class="lrow click" data-entity="${esc(this._e("month_" + slug(c)))}">
           <div><b><i class="dot" style="background:${CAR_COLORS[ci % CAR_COLORS.length]}"></i>${esc(c)}</b>
             ${hasNotify ? `<button class="link" data-act="report" data-car="${esc(c)}">rapport</button>` : ""}</div>
-          <div class="r">${num(a?.kwh ?? 0, 1)} kWh · ${eur(a?.cost ?? 0)}<small>vorige: ${num(b?.kwh ?? 0, 1)} kWh · ${eur(
-          b?.cost ?? 0
-        )} · ${b?.sessions ?? 0}×</small></div></div>`;
+          <div class="r"><span class="ml">${monthShort(thisYm)}</span> ${num(a?.kwh ?? 0, 1)} kWh · ${eur(a?.cost ?? 0)} · ${
+          a?.sessions ?? 0
+        }×<small><span class="ml">${monthShort(prevYm)}</span> ${num(b?.kwh ?? 0, 1)} kWh · ${eur(b?.cost ?? 0)} · ${
+          b?.sessions ?? 0
+        }×</small></div></div>`;
       })
       .join("");
     const sum = (t) =>
@@ -779,7 +766,7 @@ class EVChargeDirectorCard extends HTMLElement {
         .header { grid-template-columns:1fr auto; }
         .header .center { grid-column:1 / -1; grid-row:2; justify-self:start; }
       }
-      .cols { display:grid; grid-template-columns:1fr; gap:24px; padding:16px var(--pad-x); }
+      .cols { display:grid; grid-template-columns:1fr; gap:24px; padding:18px var(--pad-x); }
       ha-card[data-cols="2"] .cols { grid-template-columns:1fr 1fr; }
       ha-card[data-cols="2"] .col3 { grid-column:1 / -1; border-top:1px solid var(--divider-color); padding-top:16px;
         display:grid; grid-template-columns:1fr 1fr; grid-template-areas:"last months" "sess months"; column-gap:24px; align-content:start; }
@@ -870,6 +857,7 @@ class EVChargeDirectorCard extends HTMLElement {
       .lrow { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:.9rem; border-bottom:1px solid var(--divider-color); }
       .lrow:last-child { border-bottom:none; }
       .lrow .r { text-align:right; }
+      .ml { display:inline-block; min-width:28px; color:var(--secondary-text-color); font-weight:400; font-size:.75rem; }
       .socbox { padding:12px; border-bottom:1px solid var(--divider-color); }
       .socbox:last-child { border-bottom:none; }
       .socval { font-size:1.6rem; font-weight:600; }

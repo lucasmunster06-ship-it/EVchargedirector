@@ -19,6 +19,7 @@ def _managers(hass: HomeAssistant) -> dict[str, Any]:
 def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_list)
     websocket_api.async_register_command(hass, ws_subscribe)
+    websocket_api.async_register_command(hass, ws_history)
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/list"})
@@ -51,3 +52,25 @@ def ws_subscribe(hass: HomeAssistant, connection: websocket_api.ActiveConnection
     connection.subscriptions[msg["id"]] = manager.async_add_listener(push)
     connection.send_result(msg["id"])
     push()
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/history",
+        vol.Optional("entry_id"): str,
+        vol.Optional("month"): vol.Match(r"^\d{4}-\d{2}$"),
+    }
+)
+@websocket_api.async_response
+async def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Alle sessies (optioneel van één maand) uit de CSV's."""
+    from .logic import read_history
+
+    managers = _managers(hass)
+    entry_id = msg.get("entry_id")
+    manager = managers.get(entry_id) if entry_id else next(iter(managers.values()), None)
+    if manager is None:
+        connection.send_error(msg["id"], "not_found", "Geen laadpunt gevonden")
+        return
+    data = await hass.async_add_executor_job(read_history, manager.csv_read_dir, None, msg.get("month"))
+    connection.send_result(msg["id"], {"dir": manager.csv_read_dir, **data})

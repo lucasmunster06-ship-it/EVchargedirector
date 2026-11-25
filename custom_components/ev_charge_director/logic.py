@@ -438,7 +438,7 @@ def _clean_num(s: str) -> float | None:
         return None
 
 
-def read_history(base_dir: str, max_sessions: int = 30) -> dict[str, Any]:
+def read_history(base_dir: str, max_sessions: int | None = 30, month: str | None = None) -> dict[str, Any]:
     """Lees alle CSV's: maandtotalen per auto-map en de laatste sessies."""
     months: dict[str, dict[str, dict[str, float]]] = {}
     sessions: list[dict[str, Any]] = []
@@ -452,7 +452,9 @@ def read_history(base_dir: str, max_sessions: int = 30) -> dict[str, Any]:
             m = FILE_RE.match(fn)
             if not m:
                 continue
-            month = f"{m.group(1)}-{m.group(2)}"
+            file_month = f"{m.group(1)}-{m.group(2)}"
+            if month and file_month != month:
+                continue
             try:
                 with open(os.path.join(cdir, fn), encoding="utf-8", errors="replace") as f:
                     content = f.read()
@@ -487,14 +489,14 @@ def read_history(base_dir: str, max_sessions: int = 30) -> dict[str, Any]:
                     "avg_price": round(avg, 3),
                     "duration_min": dur,
                 })
-            months.setdefault(slug, {})[month] = {
+            months.setdefault(slug, {})[file_month] = {
                 "kwh": round(agg["kwh"], 2),
                 "cost": round(agg["cost"], 2),
                 "sessions": agg["sessions"],
                 "avg_price": round(agg["weighted"] / agg["kwh"], 3) if agg["kwh"] > 0 else 0.0,
             }
     sessions.sort(key=lambda s: s.get("end") or s["start"], reverse=True)
-    return {"months": months, "sessions": sessions[:max_sessions]}
+    return {"months": months, "sessions": sessions if max_sessions is None else sessions[:max_sessions]}
 
 
 def previous_month(today: date) -> str:
