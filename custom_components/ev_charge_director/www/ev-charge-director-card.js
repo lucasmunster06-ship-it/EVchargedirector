@@ -4,23 +4,24 @@
  *
  *   type: custom:ev-charge-director-card
  *   entry_id: <optioneel, alleen bij meerdere laadpunten>
- *   title: CHARGE CONTROL        # optioneel
+ *   title: Laadpaal              # optioneel
  *
  * Breed (panel-weergave): drie kolommen met nu / slim laden & prijs / historie.
  * Smal: alles onder elkaar. Alles is altijd zichtbaar; klik op een waarde
  * om de bijbehorende entiteit te openen.
  */
 const DOMAIN = "ev_charge_director";
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
+// Kleuren uit het actieve Home Assistant-thema (zelfde als Thermostat Timeline)
 const CAT = {
-  disconnected: "#9ca3af",
-  connected: "#60a5fa",
-  charging: "#22c55e",
-  paused: "#f59e0b",
-  finished: "#60a5fa",
-  error: "#ef4444",
-  unknown: "#6b7280",
+  disconnected: "var(--disabled-text-color, #9e9e9e)",
+  connected: "var(--primary-color, #03a9f4)",
+  charging: "var(--success-color, #43a047)",
+  paused: "var(--warning-color, #ffa600)",
+  finished: "var(--primary-color, #03a9f4)",
+  error: "var(--error-color, #db4437)",
+  unknown: "var(--disabled-text-color, #9e9e9e)",
 };
 const CAR_COLORS = ["#22c55e", "#60a5fa", "#f59e0b", "#a78bfa", "#f472b6", "#2dd4bf"];
 
@@ -88,7 +89,7 @@ class EVChargeDirectorCard extends HTMLElement {
     return document.createElement("ev-charge-director-card-editor");
   }
   setConfig(config) {
-    this._config = { title: "CHARGE CONTROL", ...(config || {}) };
+    this._config = { ...(config || {}) };
     if (this._unsub) this._resubscribe();
   }
   getCardSize() {
@@ -262,7 +263,7 @@ class EVChargeDirectorCard extends HTMLElement {
     if (!this._shell) {
       root.innerHTML = `${this._styles()}
         <ha-card data-cols="${this._cols}">
-          <div class="charge-bg"></div>
+          <div class="header" data-s="header"></div>
           <div class="cols">
             <div class="col">
               <div data-s="hero"></div><div data-s="power"></div><div data-s="tiles"></div>
@@ -294,6 +295,7 @@ class EVChargeDirectorCard extends HTMLElement {
     const editing = root.activeElement && root.activeElement.tagName === "INPUT";
     this._pendingRender = editing;
     const sections = {
+      header: this._header(d, cat),
       hero: this._hero(d),
       power: this._powerState(d),
       tiles: this._tiles(d),
@@ -311,12 +313,24 @@ class EVChargeDirectorCard extends HTMLElement {
     for (const [k, html] of Object.entries(sections)) this._setSection(k, html);
   }
 
+  _header(d, cat) {
+    const sm = d.smart || {};
+    return `
+      <div class="title"><ha-icon icon="mdi:ev-station"></ha-icon><span class="title-text">${esc(this._config.title || d.name || "Laadpaal")}</span></div>
+      <div class="center"><span class="pill click" data-entity="${esc(this._e("status"))}"><span class="pdot" style="background:${CAT[cat] || CAT.unknown}"></span>${esc(
+        d.status?.label
+      )}</span></div>
+      <div class="spacer">
+        <span class="pill click" data-entity="${esc(this._e("price"))}">${isNum(d.price) ? eur(d.price, 3) + "/kWh" : "–"}</span>
+        <span class="pill click ${sm.enabled ? "success" : ""}" data-entity="${esc(this._e("smart_charging"))}">Slim laden ${sm.enabled ? "aan" : "uit"}</span>
+      </div>`;
+  }
+
   _hero(d) {
     const car = d.cars.find((c) => c.name === d.car);
     const soc = car && isNum(car.soc) ? `<div class="soc">${Math.round(car.soc)}%</div>` : "";
     return `
       <div class="hero">
-        <div class="title">${esc(this._config.title)}</div>
         <div class="ringwrap" data-entity="${esc(this._e("car"))}">
           <div class="charge-ring"></div>
           <ha-icon icon="mdi:car-electric" class="caricon"></ha-icon>
@@ -359,9 +373,9 @@ class EVChargeDirectorCard extends HTMLElement {
     const stopOk = d.has_stop && d.can_stop;
     return `
       <div class="buttons">
-        <button class="btn" data-act="start" ${startOk ? "" : "disabled"}><ha-icon icon="mdi:play-circle-outline"></ha-icon>Start</button>
+        <button class="btn success" data-act="start" ${startOk ? "" : "disabled"}><ha-icon icon="mdi:play"></ha-icon>Start</button>
         <button class="btn" data-act="car"><ha-icon icon="mdi:car-cog"></ha-icon>Auto</button>
-        <button class="btn" data-act="stop" ${stopOk ? "" : "disabled"}><ha-icon icon="mdi:stop-circle-outline"></ha-icon>Stop</button>
+        <button class="btn danger" data-act="stop" ${stopOk ? "" : "disabled"}><ha-icon icon="mdi:stop"></ha-icon>Stop</button>
       </div>`;
   }
 
@@ -433,7 +447,7 @@ class EVChargeDirectorCard extends HTMLElement {
             ? "Aan – laadt in de goedkoopste blokken vóór de deadline"
             : "Uit – laden start direct bij aansluiten. De grafiek laat zien wat de planner zou doen."
         }</div></div>
-        <button class="switch ${sm.enabled ? "on" : ""}" data-act="toggle-smart"><span></span></button>
+        <ha-switch data-act="toggle-smart" ${sm.enabled ? "checked" : ""}></ha-switch>
       </div>`;
 
     const settings = `
@@ -503,13 +517,13 @@ class EVChargeDirectorCard extends HTMLElement {
       const y = H - pad - ((s.price - min) / range) * (H - pad - 8);
       const st = new Date(s.start);
       const isNow = st.getTime() <= now && now < new Date(s.end).getTime();
-      let fill = s.after_deadline ? "#1f2937" : "#374151";
-      if (isNow) fill = "#9ca3af";
-      if (s.selected) fill = d.smart.enabled ? "var(--green)" : "url(#hatch)";
-      bars += `<rect x="${x + 0.6}" y="${Math.min(y, y0)}" width="${Math.max(bw - 1.2, 0.8)}" height="${Math.max(
+      let cls = s.after_deadline ? "b dim" : "b";
+      if (isNow) cls = "b now";
+      if (s.selected) cls = d.smart.enabled ? "b sel" : "b prev";
+      bars += `<rect class="${cls}" x="${x + 0.6}" y="${Math.min(y, y0)}" width="${Math.max(bw - 1.2, 0.8)}" height="${Math.max(
         Math.abs(y0 - y),
         1
-      )}" rx="1.5" fill="${fill}"><title>${dayHm(s.start)} · ${eur(s.price, 3)}/kWh${s.selected ? " · " + planned : ""}</title></rect>`;
+      )}" rx="1.5"><title>${dayHm(s.start)} · ${eur(s.price, 3)}/kWh${s.selected ? " · " + planned : ""}</title></rect>`;
       const hr = st.getHours();
       if (st.getMinutes() === 0 && hr % 3 === 0 && hr !== lastLabel) {
         lastLabel = hr;
@@ -540,11 +554,11 @@ class EVChargeDirectorCard extends HTMLElement {
       <div class="chart">
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
           <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="6" height="6" fill="rgba(34,197,94,.35)"/><line x1="0" y1="0" x2="0" y2="6" stroke="#22c55e" stroke-width="3"/></pattern></defs>
+            <rect width="6" height="6" class="hbg"/><line x1="0" y1="0" x2="0" y2="6" class="hln"/></pattern></defs>
           ${bars}${marks}<g class="lbl">${labels}</g></svg>
         <div class="legend">
-          <span><i style="background:#9ca3af"></i>nu</span>
-          <span><i style="background:${d.smart.enabled ? "var(--green)" : "repeating-linear-gradient(45deg,#22c55e 0 3px,rgba(34,197,94,.35) 3px 6px)"}"></i>${planned}${
+          <span><i class="lg-now"></i>nu</span>
+          <span><i class="${d.smart.enabled ? "lg-sel" : "lg-prev"}"></i>${planned}${
       window ? " " + window : ""
     }</span>
           <span>goedkoopst ${dayHm(cheapest.start)} · ${eur(cheapest.price, 3)}</span>
@@ -590,7 +604,7 @@ class EVChargeDirectorCard extends HTMLElement {
   }
   _lastGraph() {
     if (!this._data?.last_session) return "";
-    return `<div class="click" data-entity="${esc(this._e("last_energy"))}">${this._lineChart(this._hist.last, "#60a5fa")}</div>`;
+    return `<div class="click" data-entity="${esc(this._e("last_energy"))}">${this._lineChart(this._hist.last, "var(--primary-color)")}</div>`;
   }
 
   // -------------------------------------------------------------- historie
@@ -742,95 +756,118 @@ class EVChargeDirectorCard extends HTMLElement {
   }
 
   _styles() {
+    // Zelfde opbouw en thema-variabelen als Thermostat Timeline
     return `<style>
-      :host { --green:#22c55e; display:block; }
-      ha-card { display:block; background:#111827; border-radius:28px; padding:20px 16px; overflow:hidden; position:relative; color:white; border:none; }
-      .err { padding:24px; text-align:center; color:#9ca3af; }
-      .charge-bg { position:absolute; left:0; top:0; width:100%; height:520px; background:radial-gradient(circle at 50% 180px, var(--accent), transparent 30%);
-        filter:blur(35px); opacity:.25; animation:glow 4s infinite alternate; pointer-events:none; }
-      ha-card[data-cols="2"] .charge-bg { background:radial-gradient(circle at 25% 180px, var(--accent), transparent 22%); }
-      ha-card[data-cols="3"] .charge-bg { background:radial-gradient(circle at 16% 180px, var(--accent), transparent 20%); }
-      @keyframes glow { from { opacity:.15 } to { opacity:.35 } }
-      .cols { display:grid; grid-template-columns:1fr; gap:28px; position:relative; }
+      :host { display:block; }
+      ha-card { display:block; background:var(--card-background-color); color:var(--primary-text-color); border-radius:var(--ha-card-border-radius, 12px);
+        box-shadow:var(--ha-card-box-shadow, none); overflow:hidden; --pad-x:16px; --ok:var(--success-color, #43a047); }
+      .err { padding:24px; text-align:center; color:var(--secondary-text-color); }
+      .header { display:grid; align-items:center; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:.75rem; padding:12px var(--pad-x); border-bottom:1px solid var(--divider-color); }
+      .header .title { display:flex; align-items:center; gap:8px; font-weight:600; font-size:1rem; min-width:0; --mdc-icon-size:20px; }
+      .header .title-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .header .center { justify-self:center; }
+      .header .spacer { justify-self:end; display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+      .pill { display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border:1px solid var(--divider-color); border-radius:999px;
+        background:var(--secondary-background-color, rgba(0,0,0,.05)); font-size:.82rem; font-weight:600; white-space:nowrap; }
+      .pill.success { background:var(--ok); border-color:var(--ok); color:#fff; }
+      .pdot { width:8px; height:8px; border-radius:50%; flex:0 0 8px; }
+      @media (max-width:520px) {
+        .header { grid-template-columns:1fr auto; }
+        .header .center { grid-column:1 / -1; grid-row:2; justify-self:start; }
+      }
+      .cols { display:grid; grid-template-columns:1fr; gap:24px; padding:16px var(--pad-x); }
       ha-card[data-cols="2"] .cols { grid-template-columns:1fr 1fr; }
       ha-card[data-cols="2"] .col:nth-child(3) { grid-column:1 / -1; }
       ha-card[data-cols="3"] .cols { grid-template-columns:1fr 1.15fr 1fr; }
-      ha-card[data-cols="2"], ha-card[data-cols="3"] { padding:24px; }
+      ha-card[data-cols="3"] .col + .col, ha-card[data-cols="2"] .col:nth-child(2) { border-left:1px solid var(--divider-color); padding-left:24px; }
       .col { min-width:0; }
-      .hero { display:flex; flex-direction:column; align-items:center; position:relative; padding:4px 0; }
-      .title { font-size:20px; font-weight:600; letter-spacing:1px; }
-      .ringwrap { margin-top:16px; width:190px; height:190px; display:flex; justify-content:center; align-items:center; position:relative; cursor:pointer; }
-      .charge-ring { width:170px; height:170px; border-radius:50%; border:4px solid var(--accent);
-        box-shadow:0 0 35px var(--accent), inset 0 0 25px var(--accent); animation:pulse 3s infinite alternate; }
-      @keyframes pulse { from { transform:scale(.97) } to { transform:scale(1.04) } }
-      .caricon { position:absolute; top:52px; --mdc-icon-size:58px; color:white; }
-      .carname { position:absolute; top:122px; font-size:15px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
-      .soc { position:absolute; top:144px; font-size:13px; color:#9ca3af; }
-      .power { font-size:40px; font-weight:600; margin-top:10px; cursor:pointer; }
-      .power span { font-size:20px; color:#9ca3af; }
-      .powerbar { width:260px; max-width:90%; height:7px; border-radius:10px; background:#374151; overflow:hidden; margin-top:12px; }
-      .powerfill { height:100%; border-radius:10px; background:var(--accent); box-shadow:0 0 12px var(--accent); transition:width .6s; }
-      .state { margin-top:14px; color:var(--accent); font-size:18px; font-weight:500; cursor:pointer; }
-      .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
-      .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:12px; }
-      .tile { background:rgba(255,255,255,.05); border-radius:14px; padding:12px; text-align:center; }
+      .hero { display:flex; flex-direction:column; align-items:center; padding:4px 0; }
+      .ringwrap { margin-top:6px; width:180px; height:180px; display:flex; justify-content:center; align-items:center; position:relative; cursor:pointer; }
+      .charge-ring { width:160px; height:160px; border-radius:50%; border:4px solid var(--accent); box-sizing:border-box;
+        box-shadow:0 0 18px color-mix(in srgb, var(--accent) 45%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent);
+        animation:pulse 3s infinite alternate; }
+      @keyframes pulse { from { transform:scale(.97) } to { transform:scale(1.03) } }
+      @media (prefers-reduced-motion: reduce) { .charge-ring { animation:none; } }
+      .caricon { position:absolute; top:46px; --mdc-icon-size:54px; color:var(--primary-text-color); }
+      .carname { position:absolute; top:112px; font-size:14px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+      .soc { position:absolute; top:132px; font-size:13px; color:var(--secondary-text-color); }
+      .power { font-size:2.2rem; font-weight:600; margin-top:6px; cursor:pointer; }
+      .power span { font-size:1.1rem; color:var(--secondary-text-color); }
+      .powerbar { width:260px; max-width:90%; height:7px; border-radius:10px; background:var(--divider-color); overflow:hidden; margin-top:10px; }
+      .powerfill { height:100%; border-radius:10px; background:var(--accent); transition:width .6s; }
+      .state { margin-top:12px; color:var(--accent); font-size:1.05rem; font-weight:600; cursor:pointer; }
+      .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+      .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:12px; }
+      .tile { border:1px solid var(--divider-color); background:var(--secondary-background-color, rgba(0,0,0,.05)); border-radius:10px; padding:10px; text-align:center; }
       .click { cursor:pointer; }
-      .tile.click:hover, .lrow.click:hover, .xrow:hover, .socbox:hover { background:rgba(255,255,255,.09); }
-      .tn { font-size:12px; color:#9ca3af; }
-      .tv { font-size:16px; font-weight:600; margin-top:4px; }
-      .tv small, .lrow small { display:block; font-size:11px; color:#9ca3af; font-weight:400; margin-top:2px; }
-      .bh { font-size:13px; color:#9ca3af; margin:20px 0 6px; }
-      .bh.big { font-size:17px; color:white; font-weight:600; }
-      .col > div:first-child > .bh.big:first-child { margin-top:4px; }
-      .bh span { color:#9ca3af; font-weight:400; font-size:13px; }
+      .tile.click:hover, .lrow.click:hover, .xrow:hover, .socbox:hover, .pill.click:hover { border-color:var(--primary-color); }
+      .lrow.click:hover, .xrow:hover { background:color-mix(in srgb, var(--primary-color) 8%, transparent); }
+      .tn { font-size:.75rem; color:var(--secondary-text-color); }
+      .tv { font-size:1rem; font-weight:600; margin-top:4px; }
+      .tv small, .lrow small { display:block; font-size:.72rem; color:var(--secondary-text-color); font-weight:400; margin-top:2px; }
+      .bh { font-size:.8rem; color:var(--secondary-text-color); margin:18px 0 6px; }
+      .bh.big { font-size:1rem; color:var(--primary-text-color); font-weight:600; padding-bottom:6px; border-bottom:1px solid var(--divider-color); }
+      .col > div:first-child > .bh.big:first-child { margin-top:0; }
+      .bh span { color:var(--secondary-text-color); font-weight:400; font-size:.82rem; }
       .row { display:flex; align-items:center; justify-content:space-between; margin-top:8px; gap:12px; }
-      .rs { font-size:12px; color:#9ca3af; margin-top:2px; }
-      .center { text-align:center; padding:16px 0 4px; }
-      .switch { width:48px; height:28px; border-radius:14px; border:none; background:#374151; position:relative; cursor:pointer; flex:none; }
-      .switch span { position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:white; transition:left .2s; }
-      .switch.on { background:var(--green); }
-      .switch.on span { left:23px; }
-      .timein { background:none; border:none; color:white; font:inherit; font-size:16px; font-weight:600; text-align:center; margin-top:4px; color-scheme:dark; width:100%; }
-      .stepper { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:4px; }
-      .stepper span { font-size:16px; font-weight:600; min-width:64px; cursor:pointer; }
-      .stepper button { width:26px; height:26px; border-radius:50%; border:none; background:rgba(255,255,255,.1); color:white; font-size:16px; cursor:pointer; }
-      .planmsg { margin-top:14px; text-align:center; font-size:14px; color:#f59e0b; }
-      .planmsg.ok { color:var(--green); }
-      .link { background:none; border:none; color:#60a5fa; font:inherit; font-size:12px; cursor:pointer; padding:0 0 0 8px; }
-      .warn { margin-top:10px; font-size:12px; color:#f59e0b; text-align:center; }
-      .deadline { margin-top:8px; font-size:12px; color:#9ca3af; text-align:center; }
-      .chart, .graph { margin-top:6px; background:rgba(255,255,255,.03); border-radius:14px; padding:10px 10px 6px; }
+      .rs { font-size:.78rem; color:var(--secondary-text-color); margin-top:2px; }
+      .center { text-align:center; padding:12px 0 4px; }
+      .header .center { padding:0; }
+      .timein { font:inherit; font-size:1rem; font-weight:600; text-align:center; margin-top:4px; width:100%; box-sizing:border-box;
+        border:1px solid var(--divider-color); border-radius:8px; background:var(--card-background-color); color:var(--primary-text-color); height:30px; }
+      .stepper { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:4px; }
+      .stepper span { font-size:1rem; font-weight:600; min-width:64px; cursor:pointer; }
+      .stepper button { width:28px; height:28px; border-radius:8px; border:1px solid var(--divider-color); background:var(--card-background-color);
+        color:var(--primary-text-color); font-size:16px; cursor:pointer; }
+      .stepper button:hover { border-color:var(--primary-color); }
+      .planmsg { margin-top:12px; text-align:center; font-size:.9rem; font-weight:600; color:var(--warning-color, #ffa600); }
+      .planmsg.ok { color:var(--ok); }
+      .link { background:none; border:none; color:var(--primary-color); font:inherit; font-size:.78rem; cursor:pointer; padding:0 0 0 8px; }
+      .warn { margin-top:10px; font-size:.78rem; color:var(--warning-color, #ffa600); text-align:center; }
+      .deadline { margin-top:8px; font-size:.78rem; color:var(--secondary-text-color); text-align:center; }
+      .chart, .graph { margin-top:6px; border:1px solid var(--divider-color); border-radius:10px; padding:10px 10px 6px; }
       .chart svg { width:100%; height:190px; display:block; }
       .chart svg.months { height:150px; }
       .chart svg.months rect { cursor:pointer; }
       .graph svg { width:100%; height:120px; display:block; }
-      .graph.empty { color:#6b7280; font-size:12px; text-align:center; padding:40px 0; }
-      svg text { fill:#6b7280; font-size:10px; }
-      svg text.cur { fill:white; }
-      svg .axis { stroke:#374151; stroke-width:1; }
-      svg .dl { stroke:#60a5fa; stroke-width:1.5; }
-      svg .dlt { fill:#60a5fa; }
-      .legend { display:flex; flex-wrap:wrap; gap:4px 14px; justify-content:space-between; font-size:11px; color:#9ca3af; margin-top:4px; }
+      .graph.empty { color:var(--secondary-text-color); font-size:.78rem; text-align:center; padding:40px 0; }
+      svg text { fill:var(--secondary-text-color); font-size:10px; }
+      svg text.cur { fill:var(--primary-text-color); font-weight:700; }
+      svg .axis { stroke:var(--divider-color); stroke-width:1; }
+      svg .dl { stroke:var(--primary-color); stroke-width:1.5; }
+      svg .dlt { fill:var(--primary-color); }
+      svg rect.b { fill:var(--secondary-text-color); opacity:.3; }
+      svg rect.b.dim { opacity:.12; }
+      svg rect.b.now { opacity:.85; }
+      svg rect.b.sel { fill:var(--ok); opacity:1; }
+      svg rect.b.prev { fill:url(#hatch); opacity:1; }
+      svg .hbg { fill:var(--ok); opacity:.3; }
+      svg .hln { stroke:var(--ok); stroke-width:3; }
+      .legend { display:flex; flex-wrap:wrap; gap:4px 14px; justify-content:space-between; font-size:.72rem; color:var(--secondary-text-color); margin-top:4px; }
       .legend i, .dot { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
-      .list { margin-top:10px; background:rgba(255,255,255,.04); border-radius:14px; overflow:hidden; }
-      .lrow { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; font-size:14px; border-bottom:1px solid rgba(255,255,255,.05); }
+      .legend i.lg-now { background:var(--secondary-text-color); opacity:.85; }
+      .legend i.lg-sel { background:var(--ok); }
+      .legend i.lg-prev { background:repeating-linear-gradient(45deg, var(--ok) 0 3px, transparent 3px 6px); border:1px solid var(--ok); box-sizing:border-box; }
+      .list, .carbox { margin-top:10px; border:1px solid var(--divider-color); border-radius:10px; overflow:hidden; }
+      .lrow { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; font-size:.9rem; border-bottom:1px solid var(--divider-color); }
       .lrow:last-child { border-bottom:none; }
       .lrow .r { text-align:right; }
-      .carbox { background:rgba(255,255,255,.04); border-radius:14px; overflow:hidden; }
-      .socbox { padding:12px; }
-      .socval { font-size:28px; font-weight:600; }
-      .socbar { position:relative; height:10px; border-radius:6px; background:#374151; margin:8px 0 4px; }
-      .socfill { height:100%; border-radius:6px; background:linear-gradient(90deg,#22c55e,#4ade80); box-shadow:0 0 10px rgba(34,197,94,.6); }
-      .soctarget { position:absolute; top:-3px; width:2px; height:16px; background:white; border-radius:1px; }
-      .xlist { border-top:1px solid rgba(255,255,255,.05); }
-      .xrow { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:14px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,.05); --mdc-icon-size:18px; color:#d1d5db; }
+      .socbox { padding:12px; border-bottom:1px solid var(--divider-color); }
+      .socbox:last-child { border-bottom:none; }
+      .socval { font-size:1.6rem; font-weight:600; }
+      .socbar { position:relative; height:10px; border-radius:6px; background:var(--divider-color); margin:8px 0 4px; }
+      .socfill { height:100%; border-radius:6px; background:var(--ok); }
+      .soctarget { position:absolute; top:-3px; width:2px; height:16px; background:var(--primary-text-color); border-radius:1px; }
+      .xrow { display:flex; align-items:center; gap:10px; padding:8px 12px; font-size:.9rem; cursor:pointer; border-bottom:1px solid var(--divider-color); --mdc-icon-size:18px; color:var(--secondary-text-color); }
       .xrow:last-child { border-bottom:none; }
-      .xn { flex:1; color:#9ca3af; }
-      .xv { font-weight:600; color:white; text-align:right; }
-      .buttons { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:16px; }
-      .btn { background:none; border:none; color:white; font:inherit; font-size:14px; display:flex; flex-direction:column; align-items:center;
-        gap:4px; cursor:pointer; padding:8px 0 0; --mdc-icon-size:38px; }
-      .btn[disabled] { opacity:.45; pointer-events:none; }
+      .xn { flex:1; }
+      .xv { font-weight:600; color:var(--primary-text-color); text-align:right; }
+      .buttons { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:14px; }
+      .btn { cursor:pointer; border:1px solid var(--divider-color); border-radius:10px; padding:8px 10px; font:inherit; font-size:.85rem; font-weight:600;
+        background:var(--card-background-color); color:var(--primary-text-color); display:inline-flex; align-items:center; justify-content:center; gap:6px; --mdc-icon-size:18px; }
+      .btn.success { background:var(--ok); border-color:var(--ok); color:#fff; }
+      .btn.danger { background:var(--error-color); border-color:var(--error-color); color:var(--text-primary-color, #fff); }
+      .btn[disabled] { opacity:.5; cursor:not-allowed; }
     </style>`;
   }
 }
@@ -858,7 +895,7 @@ class EVChargeDirectorCardEditor extends HTMLElement {
     const entries = this._entries || [];
     this.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;padding:8px 0">
-        <label>Titel<br><input data-k="title" style="width:100%" value="${esc(this._config.title ?? "CHARGE CONTROL")}"></label>
+        <label>Titel<br><input data-k="title" style="width:100%" value="${esc(this._config.title ?? "")}"></label>
         <label>Laadpunt<br><select data-k="entry_id" style="width:100%">
           <option value="">Eerste laadpunt</option>
           ${entries
