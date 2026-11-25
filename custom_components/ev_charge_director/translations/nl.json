@@ -137,10 +137,12 @@
         "data": {
           "csv_enabled": "Sessies opslaan als CSV",
           "csv_dir": "Map (relatief aan /config)",
+          "csv_read_dir": "Historie lezen uit (optioneel)",
           "report_day": "Maandrapport op dag",
           "report_hour": "Maandrapport om (uur)"
         },
         "data_description": {
+          "csv_read_dir": "Leeg = dezelfde map. Handig om tijdens een overstap de CSV's van een ander systeem te tonen zonder er in te schrijven. Vorige sessie, recente sessies en maandtotalen komen uit deze map.",
           "csv_dir": "Let op: alles onder `www` is zonder inloggen op te vragen via /local/. Bestaande map van het package: `www/laadpaal`."
         }
       }

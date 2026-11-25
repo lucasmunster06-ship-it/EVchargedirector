@@ -475,10 +475,13 @@ def read_history(base_dir: str, max_sessions: int = 30) -> dict[str, Any]:
                 if len(row) > 5:
                     d = _clean_num(row[5])
                     dur = int(d) if d is not None else None
+                # Het oude package schreef het tijdstip van afronden in kolom 1;
+                # pas vanaf EV Charge Director staan start én einde erin.
+                new_format = len(row) > 4 and row[4].strip()
                 sessions.append({
                     "car": slug,
-                    "start": row[0].strip(),
-                    "end": row[4].strip() if len(row) > 4 else None,
+                    "start": row[0].strip() if new_format else None,
+                    "end": row[4].strip() if new_format else row[0].strip(),
                     "kwh": round(kwh, 3),
                     "cost": round(cost, 2),
                     "avg_price": round(avg, 3),
@@ -490,7 +493,7 @@ def read_history(base_dir: str, max_sessions: int = 30) -> dict[str, Any]:
                 "sessions": agg["sessions"],
                 "avg_price": round(agg["weighted"] / agg["kwh"], 3) if agg["kwh"] > 0 else 0.0,
             }
-    sessions.sort(key=lambda s: s["start"], reverse=True)
+    sessions.sort(key=lambda s: s.get("end") or s["start"], reverse=True)
     return {"months": months, "sessions": sessions[:max_sessions]}
 
 

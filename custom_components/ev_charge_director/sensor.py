@@ -30,7 +30,7 @@ def _ts(value: str | None):
 
 
 def _last(key: str) -> Callable[[EVChargeManager], Any]:
-    return lambda m: (m.data["last_session"] or {}).get(key)
+    return lambda m: (m.last_session or {}).get(key)
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -34,6 +34,7 @@ CONF_SAFETY_MARGIN = "safety_margin_min"
 # --- opslag & rapport --------------------------------------------------------
 CONF_CSV_ENABLED = "csv_enabled"
 CONF_CSV_DIR = "csv_dir"
+CONF_CSV_READ_DIR = "csv_read_dir"
 CONF_REPORT_DAY = "report_day"
 CONF_REPORT_HOUR = "report_hour"
 

@@ -16,6 +16,7 @@ from .const import (
     CONF_CARS,
     CONF_CSV_DIR,
     CONF_CSV_ENABLED,
+    CONF_CSV_READ_DIR,
     CONF_END_CATEGORIES,
     CONF_ENERGY,
     CONF_FORECAST,
@@ -42,7 +43,7 @@ CONTROL_KEYS = [CONF_START, CONF_STOP, CONF_CAN_START, CONF_CAN_STOP]
 STATUS_KEYS = [CONF_STATUS_MAP, CONF_END_CATEGORIES]
 CAR_KEYS = [CONF_CARS]
 SMART_KEYS = [CONF_MAX_POWER, CONF_SAFETY_MARGIN]
-STORAGE_KEYS = [CONF_CSV_ENABLED, CONF_CSV_DIR, CONF_REPORT_DAY, CONF_REPORT_HOUR]
+STORAGE_KEYS = [CONF_CSV_ENABLED, CONF_CSV_DIR, CONF_CSV_READ_DIR, CONF_REPORT_DAY, CONF_REPORT_HOUR]
 
 
 def _ent(domain: str | list[str] | None = None) -> sel.EntitySelector:
@@ -129,6 +130,7 @@ def _storage_schema(cur: dict[str, Any]) -> vol.Schema:
         {
             vol.Required(CONF_CSV_ENABLED, default=cur.get(CONF_CSV_ENABLED, DEFAULTS[CONF_CSV_ENABLED])): sel.BooleanSelector(),
             vol.Required(CONF_CSV_DIR, default=cur.get(CONF_CSV_DIR, DEFAULTS[CONF_CSV_DIR])): sel.TextSelector(),
+            _opt(CONF_CSV_READ_DIR, cur): sel.TextSelector(),
             vol.Required(CONF_REPORT_DAY, default=cur.get(CONF_REPORT_DAY, DEFAULTS[CONF_REPORT_DAY])): sel.NumberSelector(
                 sel.NumberSelectorConfig(min=1, max=28, step=1, mode=sel.NumberSelectorMode.BOX)
             ),

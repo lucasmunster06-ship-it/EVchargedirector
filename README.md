@@ -90,7 +90,7 @@ Volvo | notify.richard
 Gast
 ```
 
-**Opslag**: zet de map op `www/laadpaal` om de bestaande CSV's te blijven gebruiken. Let op: alles onder `www` is zonder inloggen op te vragen via `/local/`. Wil je dat niet, verplaats de map dan naar bijvoorbeeld `laadpaal` (de standaard).
+**Opslag**: zet de map op `www/laadpaal` om de bestaande CSV's te blijven gebruiken. Draai je tijdelijk naast het oude package, laat de integratie dan in een eigen map schrijven en zet *Historie lezen uit* op `www/laadpaal`; zo telt niets dubbel. Let op: alles onder `www` is zonder inloggen op te vragen via `/local/`. Wil je dat niet, verplaats de map dan naar bijvoorbeeld `laadpaal` (de standaard).
 
 Daarna kun je het oude package (`evcharger.yaml`, `maandrapport_evcharger.yaml`) en de button-card-kaart weghalen.
 

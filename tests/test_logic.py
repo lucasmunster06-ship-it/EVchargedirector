@@ -105,5 +105,10 @@ def test_csv_roundtrip(tmp_path):
     assert abs(t["avg_price"] - (20 * 0.2 + 10 * 0.3) / 30) < 0.001
     assert h["months"]["volvo"]["2026-10"]["cost"] == 2.5
     assert len(h["sessions"]) == 3
+    # oud formaat: alleen afrondtijd bekend
+    old = [x for x in h["sessions"] if x["car"] == "volvo"][0]
+    assert old["start"] is None and old["end"] == "2026-10-05 07:00"
+    # nieuwste eerst, op eindtijd
+    assert h["sessions"][0]["end"] == "2026-10-05 07:00"
     assert logic.previous_month(date(2026, 1, 2)) == "2025-12"
     assert logic.format_duration(135) == "2 uur en 15 min"

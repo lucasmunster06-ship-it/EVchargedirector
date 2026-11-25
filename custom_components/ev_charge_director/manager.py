@@ -10,6 +10,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
+    async_call_later,
     async_track_state_change_event,
     async_track_time_change,
     async_track_time_interval,
@@ -30,6 +31,7 @@ from .const import (
     CONF_CARS,
     CONF_CSV_DIR,
     CONF_CSV_ENABLED,
+    CONF_CSV_READ_DIR,
     CONF_END_CATEGORIES,
     CONF_ENERGY,
     CONF_FORECAST,
@@ -92,6 +94,7 @@ def _default_data(cars: list[Car]) -> dict[str, Any]:
             "deadline": None,
             "charged_kwh": 0.0,
             "done": False,
+            "stopped_by_us": False,  # laatste stop kwam van de planner/knop, niet van de auto
         },
     }
 
@@ -130,6 +133,10 @@ class EVChargeManager:
                 self.data["last_session"] = stored["last_session"]
             if stored.get("car"):
                 self.data["car"] = stored["car"]
+        if self.data["smart"].get("done") and self.data["session"]["active"]:
+            # opnieuw bepalen; versie 0.3 zag een eigen stop soms aan voor "vol"
+            self.data["smart"]["done"] = False
+            self.data["smart"]["stopped_by_us"] = True
         if self.data["car"] not in [c.name for c in self.cars]:
             self.data["car"] = self.cars[0].name
 
@@ -281,6 +288,40 @@ class EVChargeManager:
     def csv_dir(self) -> str:
         return self.hass.config.path(str(self.conf.get(CONF_CSV_DIR) or "laadpaal"))
 
+    @property
+    def csv_read_dir(self) -> str:
+        """Map waaruit historie gelezen wordt (standaard dezelfde als de schrijfmap)."""
+        return self.hass.config.path(str(self.conf.get(CONF_CSV_READ_DIR) or self.conf.get(CONF_CSV_DIR) or "laadpaal"))
+
+    def _csv_time(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        dt = dt_util.parse_datetime(value.replace(" ", "T"))
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_util.get_default_time_zone())
+        return dt.isoformat()
+
+    @property
+    def last_session(self) -> dict[str, Any] | None:
+        """Laatste sessie uit de CSV's; het interne geheugen is alleen reserve."""
+        rows = self.history.get("sessions") or []
+        if rows:
+            r = rows[0]
+            names = {c.slug: c.name for c in self.cars}
+            return {
+                "car": names.get(r["car"], r["car"]),
+                "start": self._csv_time(r.get("start")),
+                "end": self._csv_time(r.get("end")),
+                "kwh": r["kwh"],
+                "cost": r["cost"],
+                "avg_price": r["avg_price"],
+                "duration_min": r.get("duration_min"),
+                "source": "csv",
+            }
+        return self.data["last_session"]
+
     # ----------------------------------------------------------------- events
     async def _on_state_event(self, event: Event) -> None:
         eid = event.data.get("entity_id")
@@ -312,6 +353,7 @@ class EVChargeManager:
 
     async def _on_hourly(self, _now: datetime) -> None:
         self._refresh_slots()
+        await self.async_refresh_history()
 
     async def _handle_status(self, old_cat: str | None, status: dict[str, Any]) -> None:
         cat = status["category"]
@@ -321,6 +363,8 @@ class EVChargeManager:
         elif sess["active"] and cat in self.end_categories:
             # ook na een herstart als de auto tussendoor is losgekoppeld
             await self._finish_session()
+        if cat == CAT_CHARGING:
+            self.data["smart"]["stopped_by_us"] = False
         if cat == CAT_DISCONNECTED:
             self._reset_plan()
         self._notify()
@@ -413,7 +457,8 @@ class EVChargeManager:
                 )
             except OSError:
                 _LOGGER.exception("Kon laadsessie niet naar CSV schrijven")
-            await self.async_refresh_history()
+        await self.async_refresh_history()
+        async_call_later(self.hass, 60, self._delayed_history)
 
         if car.notify and kwh > 0:
             msg = (
@@ -421,6 +466,9 @@ class EVChargeManager:
                 f"€{cost:.2f} met een gemiddelde prijs van €{avg:.3f}/kWh."
             )
             await self._send(car.notify, f"Laadsessie {car.name} voltooid", msg)
+
+    async def _delayed_history(self, _now: datetime) -> None:
+        await self.async_refresh_history()
 
     async def _send(self, service: str, title: str, message: str) -> None:
         domain, _, name = service.partition(".")
@@ -432,7 +480,7 @@ class EVChargeManager:
             _LOGGER.warning("Melding via %s mislukt", service, exc_info=True)
 
     async def async_refresh_history(self) -> None:
-        self.history = await self.hass.async_add_executor_job(read_history, self.csv_dir, 40)
+        self.history = await self.hass.async_add_executor_job(read_history, self.csv_read_dir, 40)
         self._notify()
 
     # -------------------------------------------------------------- slim laden
@@ -443,7 +491,7 @@ class EVChargeManager:
 
     def _reset_plan(self) -> None:
         sm = self.data["smart"]
-        sm.update(deadline=None, charged_kwh=0.0, done=False, override=None)
+        sm.update(deadline=None, charged_kwh=0.0, done=False, override=None, stopped_by_us=False)
         self._save()
 
     def _needed_kwh(self) -> tuple[float, str]:
@@ -473,7 +521,9 @@ class EVChargeManager:
         deadline = dt_util.parse_datetime(sm["deadline"]) or now
 
         need, need_mode = self._needed_kwh()
-        if cat == CAT_FINISHED and not override:
+        # Sommige laadpalen (o.a. Alpha ESS) melden na een stop-commando "voltooid".
+        # Alleen als de auto zelf gestopt is, betekent dat: vol.
+        if cat == CAT_FINISHED and not override and not sm.get("stopped_by_us"):
             sm["done"] = True
         if need <= 0.05 and not override:
             sm["done"] = True
@@ -575,7 +625,8 @@ class EVChargeManager:
             return
         if self._attempts >= 3:
             return  # laadpaal/auto reageert niet; wacht op een statuswissel
-        if desired and cat in (CAT_CONNECTED, CAT_PAUSED) and self.can_start:
+        restartable = (CAT_CONNECTED, CAT_PAUSED) + ((CAT_FINISHED,) if self.data["smart"].get("stopped_by_us") else ())
+        if desired and cat in restartable and self.can_start:
             await self._activate(True)
         elif not desired and cat == CAT_CHARGING and self.can_stop:
             await self._activate(False)
@@ -600,8 +651,14 @@ class EVChargeManager:
         else:
             _LOGGER.warning("Domein %s wordt niet ondersteund voor bediening", domain)
             return
+        if self._last_command_kind == ("start" if start else "stop") and self._last_command and (
+            dt_util.now() - self._last_command
+        ) < timedelta(seconds=15):
+            return  # dubbel commando binnen 15 s negeren
         self._last_command = dt_util.now()
         self._attempts += 1
+        self.data["smart"]["stopped_by_us"] = not start
+        self._save()
         self._last_command_kind = "start" if start else "stop"
         _LOGGER.debug("%s laden via %s.%s(%s)", "Start" if start else "Stop", domain, service, eid)
         try:
@@ -634,7 +691,7 @@ class EVChargeManager:
 
     async def async_clear_override(self) -> None:
         self.data["smart"]["override"] = None
-        self._last_command = None
+        self.data["smart"]["done"] = False
         self._save()
         await self._evaluate()
 
@@ -677,7 +734,6 @@ class EVChargeManager:
         if target_soc is not None:
             sm["target_soc"] = min(max(int(target_soc), 0), 100)
             sm["done"] = False
-        self._last_command = None
         self._save()
         await self._evaluate()
 
@@ -757,7 +813,7 @@ class EVChargeManager:
                 "cost": round(float(s["cost"]), 2),
                 "duration_min": duration,
             },
-            "last_session": self.data["last_session"],
+            "last_session": self.last_session,
             "smart": {
                 "enabled": self.data["smart"]["enabled"],
                 "ready_time": self.data["smart"]["ready_time"],

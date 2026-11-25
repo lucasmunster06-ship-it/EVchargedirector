@@ -137,10 +137,12 @@
         "data": {
           "csv_enabled": "Store sessions as CSV",
           "csv_dir": "Folder (relative to /config)",
+          "csv_read_dir": "Read history from (optional)",
           "report_day": "Monthly report on day",
           "report_hour": "Monthly report at hour"
         },
         "data_description": {
+          "csv_read_dir": "Empty = same folder.",
           "csv_dir": "Note: anything under `www` is reachable without login via /local/."
         }
       }

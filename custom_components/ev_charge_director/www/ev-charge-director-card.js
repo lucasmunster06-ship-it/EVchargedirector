@@ -11,7 +11,7 @@
  * om de bijbehorende entiteit te openen.
  */
 const DOMAIN = "ev_charge_director";
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 // Kleuren uit het actieve Home Assistant-thema (zelfde als Thermostat Timeline)
 const CAT = {
@@ -222,7 +222,7 @@ class EVChargeDirectorCard extends HTMLElement {
         this._setSection("nowgraph", this._nowGraph());
       }
       const l = d.last_session;
-      const lastKey = l ? `${l.start}|${l.end}` : null;
+      const lastKey = l && l.start && l.end ? `${l.start}|${l.end}` : null;
       if (lastKey && lastKey !== this._hist.lastKey) {
         this._hist.lastKey = lastKey;
         const a = new Date(l.start);
@@ -603,7 +603,9 @@ class EVChargeDirectorCard extends HTMLElement {
     return `<div class="click" data-entity="${esc(this._e("power"))}">${this._lineChart(this._hist.now, "var(--accent)")}</div>`;
   }
   _lastGraph() {
-    if (!this._data?.last_session) return "";
+    const l = this._data?.last_session;
+    if (!l) return "";
+    if (!l.start) return `<div class="graph empty">Geen starttijd in de CSV (oud formaat) – grafiek niet beschikbaar</div>`;
     return `<div class="click" data-entity="${esc(this._e("last_energy"))}">${this._lineChart(this._hist.last, "var(--primary-color)")}</div>`;
   }
 
@@ -611,7 +613,8 @@ class EVChargeDirectorCard extends HTMLElement {
   _last(d) {
     const l = d.last_session;
     if (!l) return `<div class="bh big">Vorige sessie</div><div class="rs center">Nog geen afgeronde sessie</div>`;
-    return `<div class="bh big">Vorige sessie <span>· ${esc(l.car)} · ${dayHm(l.start)}</span></div>
+    const when = l.start ? `${dayHm(l.start)} – ${hm(l.end)}` : `klaar ${dayHm(l.end)}`;
+    return `<div class="bh big">Vorige sessie <span>· ${esc(l.car)} · ${when}</span></div>
       <div class="grid2">
         ${this._tile("Opgeladen tijd", dur(l.duration_min), this._e("last_duration"))}
         ${this._tile("Opgeladen", num(l.kwh, 2) + " kWh", this._e("last_energy"))}
@@ -695,7 +698,7 @@ class EVChargeDirectorCard extends HTMLElement {
     const rows = (d.sessions || [])
       .slice(0, 8)
       .map((s) => {
-        const st = parseLocal(s.start);
+        const st = parseLocal(s.start || s.end);
         return `<div class="lrow"><div><b>${esc(s.car)}</b><small>${st ? dayHm(st) : esc(s.start)}${
           s.duration_min ? " · " + dur(s.duration_min) : ""
         }</small></div><div class="r">${num(s.kwh, 1)} kWh<small>${eur(s.cost)} · ${eur(s.avg_price, 3)}</small></div></div>`;
