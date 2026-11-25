@@ -25,7 +25,7 @@ Je zit niet vast aan één merk laadpaal of energieleverancier. Je koppelt zelf 
    type: custom:ev-charge-director-card
    ```
 
-   De kaart wordt automatisch geladen. Je hoeft geen resource toe te voegen en button-card is niet nodig.
+   De kaart wordt automatisch geladen. Je hoeft geen resource toe te voegen en button-card is niet nodig. Zet de weergave op **Paneel** voor het brede overzicht met drie kolommen; op een telefoon staat alles onder elkaar.
 
 ## Instellen
 
@@ -50,7 +50,7 @@ Categorieën: `disconnected`, `connected`, `charging`, `paused`, `finished`, `er
 
 ### Auto's
 
-Eén auto per regel: `Naam | notify-dienst | SoC-sensor | accu kWh`. Alleen de naam is verplicht.
+Eén auto per regel: `Naam | notify-dienst | SoC-sensor | accu kWh | extra entiteiten`. Alleen de naam is verplicht; een lege kolom schrijf je als `| |`. De extra entiteiten (komma-gescheiden, bijv. bereik, laadstatus, locatie) toont de kaart in het autovak; klik erop voor meer info.
 
 ### Prijsvoorspelling
 

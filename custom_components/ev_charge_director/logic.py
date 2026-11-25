@@ -100,6 +100,7 @@ class Car:
     notify: str | None = None
     soc_entity: str | None = None
     capacity_kwh: float | None = None
+    extra: list[str] = field(default_factory=list)
 
     @property
     def slug(self) -> str:
@@ -112,7 +113,11 @@ def car_slug(name: str) -> str:
 
 
 def parse_cars(text: str | None) -> list[Car]:
-    """Regels als ``Tesla | notify.lucas | sensor.tesla_battery | 75``."""
+    """Regels als ``Tesla | notify.lucas | sensor.tesla_battery | 75 | sensor.range, sensor.status``.
+
+    Kolom 5 (optioneel): extra entiteiten van de auto die de kaart toont
+    (bereik, laadstatus, locatie, ...), komma-gescheiden.
+    """
     cars: list[Car] = []
     seen: set[str] = set()
     for line in (text or "").splitlines():
@@ -134,7 +139,10 @@ def parse_cars(text: str | None) -> list[Car]:
                 cap = float(parts[3].replace(",", "."))
             except ValueError:
                 cap = None
-        cars.append(Car(name, notify, soc, cap))
+        extra: list[str] = []
+        for part in parts[4:]:
+            extra += [e.strip() for e in part.split(",") if "." in e.strip()]
+        cars.append(Car(name, notify, soc, cap, extra))
     if not cars:
         cars.append(Car("Auto"))
     return cars
@@ -158,6 +166,10 @@ def validate_cars(text: str) -> str | None:
                     return "cars_capacity"
             except ValueError:
                 return "cars_capacity"
+        for part in parts[4:]:
+            for e in part.split(","):
+                if e.strip() and "." not in e.strip():
+                    return "cars_extra"
     return None
 
 

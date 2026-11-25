@@ -46,7 +46,7 @@
           "cars": "Cars"
         },
         "data_description": {
-          "cars": "One car per line: `Name | notify.service | SoC sensor | battery kWh`. Only the name is required."
+          "cars": "One car per line: `Name | notify.service | SoC sensor | battery kWh | extra entities`. Only the name is required."
         }
       }
     },
@@ -57,7 +57,8 @@
       "cars_format": "Each line must start with a name.",
       "cars_notify": "Second column must be a notify service.",
       "cars_soc": "Third column must be an entity.",
-      "cars_capacity": "Fourth column must be the battery capacity in kWh."
+      "cars_capacity": "Fourth column must be the battery capacity in kWh.",
+      "cars_extra": "Fifth column must be a comma-separated list of entities."
     },
     "abort": {
       "already_configured": "Already configured."
@@ -118,7 +119,7 @@
           "cars": "Cars"
         },
         "data_description": {
-          "cars": "One car per line: `Name | notify.service | SoC sensor | battery kWh`. Only the name is required."
+          "cars": "One car per line: `Name | notify.service | SoC sensor | battery kWh | extra entities`. Only the name is required."
         }
       },
       "smart": {
@@ -151,7 +152,8 @@
       "cars_format": "Each line must start with a name.",
       "cars_notify": "Second column must be a notify service.",
       "cars_soc": "Third column must be an entity.",
-      "cars_capacity": "Fourth column must be the battery capacity in kWh."
+      "cars_capacity": "Fourth column must be the battery capacity in kWh.",
+      "cars_extra": "Fifth column must be a comma-separated list of entities."
     }
   },
   "selector": {

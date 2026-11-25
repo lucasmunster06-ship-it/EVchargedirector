@@ -8,6 +8,7 @@ from typing import Any, Callable
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_change,
@@ -461,11 +462,8 @@ class EVChargeManager:
         cat = self.category
         override = sm.get("override")
 
-        if not sm["enabled"]:
-            self.plan = {"mode": "off"}
-            return None
-        if cat in (CAT_DISCONNECTED, CAT_UNKNOWN, CAT_ERROR):
-            self.plan = {"mode": "waiting"}
+        if not sm["enabled"] or cat in (CAT_DISCONNECTED, CAT_UNKNOWN, CAT_ERROR):
+            self.plan = self._preview_plan(now, "off" if not sm["enabled"] else "waiting")
             return None
 
         if not sm.get("deadline"):
@@ -522,6 +520,30 @@ class EVChargeManager:
             "slots": self._slots_view(now, deadline, res.selected),
         }
         return desired
+
+    def _preview_plan(self, now: datetime, mode: str) -> dict[str, Any]:
+        """Wat de planner zou doen met de huidige instellingen (zonder in te grijpen)."""
+        sm = self.data["smart"]
+        hh, mm = (int(x) for x in str(sm["ready_time"]).split(":")[:2])
+        deadline = next_occurrence(time(hh, mm), now)
+        need, need_mode = self._needed_kwh()
+        if not sm.get("deadline"):
+            # nog geen lopende planning: rekenen met het volledige laaddoel
+            need = need if need_mode == "soc" else max(float(sm["target_kwh"]), 0.0)
+        needed_h = need / self.max_power if self.max_power > 0 else 0
+        res = plan_cheapest(self._slots, now, deadline, needed_h, self.max_power)
+        return {
+            "mode": mode,
+            "preview": True,
+            "deadline": deadline.isoformat(),
+            "needed_kwh": round(need, 2),
+            "need_mode": need_mode,
+            "needed_minutes": int(round(needed_h * 60)),
+            "insufficient": res.insufficient,
+            "expected_cost": res.expected_cost,
+            "next_start": res.next_start.isoformat() if res.next_start else None,
+            "slots": self._slots_view(now, deadline, res.selected),
+        }
 
     def _slots_view(self, now: datetime, deadline: datetime, selected: set) -> list[dict[str, Any]]:
         end = max(deadline, now + timedelta(hours=12))
@@ -685,6 +707,15 @@ class EVChargeManager:
             await self._send(c.notify, title, msg)
 
     # ------------------------------------------------------------- snapshot
+    def entity_ids(self) -> dict[str, str]:
+        """Eigen entiteiten per sleutel (status, session_energy, month_tesla, ...)."""
+        reg = er.async_get(self.hass)
+        prefix = f"{self.entry.entry_id}_"
+        return {
+            ent.unique_id.removeprefix(prefix): ent.entity_id
+            for ent in er.async_entries_for_config_entry(reg, self.entry.entry_id)
+        }
+
     def snapshot(self) -> dict[str, Any]:
         s = self.data["session"]
         now = dt_util.now()
@@ -714,6 +745,8 @@ class EVChargeManager:
                     "soc": self.car_soc(c),
                     "capacity_kwh": c.capacity_kwh,
                     "has_notify": bool(c.notify),
+                    "soc_entity": c.soc_entity,
+                    "extra": c.extra,
                 }
                 for c in self.cars
             ],
@@ -734,6 +767,12 @@ class EVChargeManager:
                 "has_forecast": bool(self._slots),
             },
             "plan": self.plan,
+            "entities": self.entity_ids(),
+            "sources": {
+                k: self.conf.get(c)
+                for k, c in (("status", CONF_STATUS), ("energy", CONF_ENERGY), ("power", CONF_POWER), ("price", CONF_PRICE))
+            },
+            "car_slugs": {c.name: c.slug for c in self.cars},
             "months": months,
             "sessions": sessions,
         }

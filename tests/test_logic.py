@@ -34,6 +34,9 @@ def test_cars():
     assert cars[2].slug == "gast"
     assert logic.validate_cars("Tesla | notify.x | sensor.y | abc") == "cars_capacity"
     assert logic.parse_cars("")[0].name == "Auto"
+    c = logic.parse_cars("Tesla | | sensor.soc | 75 | sensor.range, device_tracker.tesla")[0]
+    assert c.notify is None and c.extra == ["sensor.range", "device_tracker.tesla"]
+    assert logic.validate_cars("Tesla | | | | bereik") == "cars_extra"
 
 
 def _frank(n=24, start=datetime(2026, 11, 25, 0, 0, tzinfo=TZ)):
