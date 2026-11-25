@@ -11,7 +11,7 @@
  * om de bijbehorende entiteit te openen.
  */
 const DOMAIN = "ev_charge_director";
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 
 // Kleuren uit het actieve Home Assistant-thema (zelfde als Thermostat Timeline)
 const CAT = {
@@ -122,7 +122,8 @@ class EVChargeDirectorCard extends HTMLElement {
 
   _layout() {
     const w = this.clientWidth || 0;
-    const cols = w >= 1150 ? 3 : w >= 760 ? 2 : 1;
+    // telefoon: 1 kolom · tablet: 2 kolommen + historie in 2 kolommen eronder · breed: 3 kolommen
+    const cols = w >= 1180 ? 3 : w >= 700 ? 2 : 1;
     if (cols !== this._cols) {
       this._cols = cols;
       const card = this.shadowRoot.querySelector("ha-card");
@@ -275,10 +276,10 @@ class EVChargeDirectorCard extends HTMLElement {
               <div data-s="prices"></div>
               <div data-s="plan"></div>
             </div>
-            <div class="col">
-              <div data-s="last"></div><div data-s="lastgraph"></div>
-              <div data-s="months"></div>
-              <div data-s="sessions"></div>
+            <div class="col col3">
+              <div class="w-last"><div data-s="last"></div><div data-s="lastgraph"></div></div>
+              <div class="w-months" data-s="months"></div>
+              <div class="w-sessions" data-s="sessions"></div>
             </div>
           </div>
         </ha-card>`;
@@ -780,9 +781,23 @@ class EVChargeDirectorCard extends HTMLElement {
       }
       .cols { display:grid; grid-template-columns:1fr; gap:24px; padding:16px var(--pad-x); }
       ha-card[data-cols="2"] .cols { grid-template-columns:1fr 1fr; }
-      ha-card[data-cols="2"] .col:nth-child(3) { grid-column:1 / -1; }
+      ha-card[data-cols="2"] .col3 { grid-column:1 / -1; border-top:1px solid var(--divider-color); padding-top:16px;
+        display:grid; grid-template-columns:1fr 1fr; grid-template-areas:"last months" "sess months"; column-gap:24px; align-content:start; }
+      ha-card[data-cols="2"] .w-last { grid-area:last; }
+      ha-card[data-cols="2"] .w-months { grid-area:months; border-left:1px solid var(--divider-color); padding-left:24px; }
+      ha-card[data-cols="2"] .w-sessions { grid-area:sess; }
+      ha-card[data-cols="2"] .ringwrap { width:150px; height:150px; }
+      ha-card[data-cols="2"] .charge-ring { width:134px; height:134px; }
+      ha-card[data-cols="2"] .caricon { top:34px; --mdc-icon-size:46px; }
+      ha-card[data-cols="2"] .carname { top:88px; font-size:13px; }
+      ha-card[data-cols="2"] .soc { top:106px; }
+      ha-card[data-cols="2"] .power { font-size:1.9rem; }
+      ha-card[data-cols="2"] .grid3 .tv { font-size:.9rem; }
       ha-card[data-cols="3"] .cols { grid-template-columns:1fr 1.15fr 1fr; }
       ha-card[data-cols="3"] .col + .col, ha-card[data-cols="2"] .col:nth-child(2) { border-left:1px solid var(--divider-color); padding-left:24px; }
+      .w-months > .bh.big:first-child, .w-sessions > .bh.big:first-child { margin-top:18px; }
+      ha-card[data-cols="2"] .w-months > .bh.big:first-child, .w-last [data-s="last"] > .bh.big:first-child { margin-top:0; }
+      @media (max-width:600px) { .grid3 { grid-template-columns:1fr 1fr; } .grid3 .tile:first-child { grid-column:1 / -1; } }
       .col { min-width:0; }
       .hero { display:flex; flex-direction:column; align-items:center; padding:4px 0; }
       .ringwrap { margin-top:6px; width:180px; height:180px; display:flex; justify-content:center; align-items:center; position:relative; cursor:pointer; }
