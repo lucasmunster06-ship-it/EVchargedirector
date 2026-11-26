@@ -37,6 +37,9 @@ def test_cars():
     c = logic.parse_cars("Tesla | | sensor.soc | 75 | sensor.range, device_tracker.tesla")[0]
     assert c.notify is None and c.extra == ["sensor.range", "device_tracker.tesla"]
     assert logic.validate_cars("Tesla | | | | bereik") == "cars_extra"
+    t = logic.parse_cars("Tesla | | | | sensor.a | switch.tesla_opladen")[0]
+    assert t.charge_entity == "switch.tesla_opladen" and t.extra == ["sensor.a"]
+    assert logic.validate_cars("Tesla | | | | | sensor.x") == "cars_charge"
 
 
 def _frank(n=24, start=datetime(2026, 11, 25, 0, 0, tzinfo=TZ)):

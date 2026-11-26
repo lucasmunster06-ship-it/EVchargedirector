@@ -46,7 +46,7 @@
           "cars": "Auto's"
         },
         "data_description": {
-          "cars": "Eén auto per regel: `Naam | notify.dienst | SoC-sensor | accu kWh | extra entiteiten`. Alleen de naam is verplicht; laat een kolom leeg met `| |`. Met SoC-sensor en accucapaciteit plant slim laden op laadpercentage, anders op kWh. Extra entiteiten (bereik, laadstatus, locatie, ...) komma-gescheiden; die toont de kaart bij de auto."
+          "cars": "Eén auto per regel: `Naam | notify.dienst | SoC-sensor | accu kWh | extra entiteiten | laadschakelaar auto`. Alleen de naam is verplicht; laat een kolom leeg met `| |`. Met SoC-sensor en accucapaciteit plant slim laden op laadpercentage, anders op kWh. Extra entiteiten (bereik, laadstatus, locatie, ...) komma-gescheiden; die toont de kaart bij de auto. Zesde kolom (optioneel): de laadschakelaar van de auto zelf, die bij starten ook wordt aangezet (handig voor Tesla)."
         }
       }
     },
@@ -58,6 +58,7 @@
       "cars_notify": "De tweede kolom moet een notify-dienst zijn, bijv. notify.mobile_app_telefoon.",
       "cars_soc": "De derde kolom moet een entiteit zijn, bijv. sensor.tesla_battery.",
       "cars_capacity": "De vierde kolom moet de accucapaciteit in kWh zijn.",
+      "cars_charge": "De zesde kolom moet een schakelaar, knop of script zijn (bijv. switch.tesla_opladen).",
       "cars_extra": "De vijfde kolom moet een lijst entiteiten zijn, gescheiden door komma's."
     },
     "abort": {
@@ -119,7 +120,7 @@
           "cars": "Auto's"
         },
         "data_description": {
-          "cars": "Eén auto per regel: `Naam | notify.dienst | SoC-sensor | accu kWh | extra entiteiten`. Alleen de naam is verplicht; laat een kolom leeg met `| |`. Met SoC-sensor en accucapaciteit plant slim laden op laadpercentage, anders op kWh. Extra entiteiten (bereik, laadstatus, locatie, ...) komma-gescheiden; die toont de kaart bij de auto."
+          "cars": "Eén auto per regel: `Naam | notify.dienst | SoC-sensor | accu kWh | extra entiteiten | laadschakelaar auto`. Alleen de naam is verplicht; laat een kolom leeg met `| |`. Met SoC-sensor en accucapaciteit plant slim laden op laadpercentage, anders op kWh. Extra entiteiten (bereik, laadstatus, locatie, ...) komma-gescheiden; die toont de kaart bij de auto. Zesde kolom (optioneel): de laadschakelaar van de auto zelf, die bij starten ook wordt aangezet (handig voor Tesla)."
         }
       },
       "smart": {
@@ -155,6 +156,7 @@
       "cars_notify": "De tweede kolom moet een notify-dienst zijn, bijv. notify.mobile_app_telefoon.",
       "cars_soc": "De derde kolom moet een entiteit zijn, bijv. sensor.tesla_battery.",
       "cars_capacity": "De vierde kolom moet de accucapaciteit in kWh zijn.",
+      "cars_charge": "De zesde kolom moet een schakelaar, knop of script zijn (bijv. switch.tesla_opladen).",
       "cars_extra": "De vijfde kolom moet een lijst entiteiten zijn, gescheiden door komma's."
     }
   },

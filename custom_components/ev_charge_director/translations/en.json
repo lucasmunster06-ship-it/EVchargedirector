@@ -58,6 +58,7 @@
       "cars_notify": "Second column must be a notify service.",
       "cars_soc": "Third column must be an entity.",
       "cars_capacity": "Fourth column must be the battery capacity in kWh.",
+      "cars_charge": "Sixth column must be a switch, button or script.",
       "cars_extra": "Fifth column must be a comma-separated list of entities."
     },
     "abort": {
@@ -155,6 +156,7 @@
       "cars_notify": "Second column must be a notify service.",
       "cars_soc": "Third column must be an entity.",
       "cars_capacity": "Fourth column must be the battery capacity in kWh.",
+      "cars_charge": "Sixth column must be a switch, button or script.",
       "cars_extra": "Fifth column must be a comma-separated list of entities."
     }
   },

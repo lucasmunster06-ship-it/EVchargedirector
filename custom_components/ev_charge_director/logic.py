@@ -101,6 +101,7 @@ class Car:
     soc_entity: str | None = None
     capacity_kwh: float | None = None
     extra: list[str] = field(default_factory=list)
+    charge_entity: str | None = None  # laadschakelaar/knop van de auto zelf (bijv. Tesla "Opladen")
 
     @property
     def slug(self) -> str:
@@ -140,9 +141,10 @@ def parse_cars(text: str | None) -> list[Car]:
             except ValueError:
                 cap = None
         extra: list[str] = []
-        for part in parts[4:]:
-            extra += [e.strip() for e in part.split(",") if "." in e.strip()]
-        cars.append(Car(name, notify, soc, cap, extra))
+        if len(parts) > 4:
+            extra = [e.strip() for e in parts[4].split(",") if "." in e.strip()]
+        charge = parts[5] if len(parts) > 5 and "." in parts[5] else None
+        cars.append(Car(name, notify, soc, cap, extra, charge))
     if not cars:
         cars.append(Car("Auto"))
     return cars
@@ -166,10 +168,12 @@ def validate_cars(text: str) -> str | None:
                     return "cars_capacity"
             except ValueError:
                 return "cars_capacity"
-        for part in parts[4:]:
-            for e in part.split(","):
+        if len(parts) > 4:
+            for e in parts[4].split(","):
                 if e.strip() and "." not in e.strip():
                     return "cars_extra"
+        if len(parts) > 5 and parts[5] and not parts[5].split(".")[0] in ("switch", "button", "input_boolean", "script"):
+            return "cars_charge"
     return None
 
 

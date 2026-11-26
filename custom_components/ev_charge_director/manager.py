@@ -121,6 +121,7 @@ class EVChargeManager:
         self._last_command: datetime | None = None
         self._last_command_kind: str | None = None
         self._attempts = 0  # mislukte start/stop-pogingen sinds laatste statuswissel
+        self._fail_notified = False
 
     # ------------------------------------------------------------------ setup
     async def async_setup(self) -> None:
@@ -254,7 +255,12 @@ class EVChargeManager:
         if soc is not None and target is not None and soc >= target - 1:
             return {"label": f"Opladen voltooid · {soc:.0f}%"}
         if sm.get("stopped_by_us"):
-            label = "Gepauzeerd · wacht op goedkoop moment" if sm.get("enabled") and not sm.get("override") else "Gestopt"
+            if self.plan.get("mode") == "charging":
+                label = "Gepauzeerd · starten wordt geprobeerd"
+            elif sm.get("enabled") and not sm.get("override"):
+                label = "Gepauzeerd · wacht op goedkoop moment"
+            else:
+                label = "Gestopt"
             if soc is not None:
                 label += f" · {soc:.0f}%"
             return {"category": CAT_PAUSED, "label": label}
@@ -370,6 +376,7 @@ class EVChargeManager:
             self._refresh_slots()
         if eid == self.conf.get(CONF_STATUS):
             self._attempts = 0
+            self._fail_notified = False
             old_cat = self._category_of(old)
             await self._handle_status(old_cat, self.status)
         elif eid == self.conf.get(CONF_ENERGY):
@@ -661,7 +668,19 @@ class EVChargeManager:
         if self._last_command and now - self._last_command < COMMAND_COOLDOWN:
             return
         if self._attempts >= 3:
-            return  # laadpaal/auto reageert niet; wacht op een statuswissel
+            # laadpaal/auto reageert niet; wacht op een statuswissel en meld het één keer
+            if desired and self.category != CAT_CHARGING and not self._fail_notified:
+                self._fail_notified = True
+                car = self.car
+                _LOGGER.warning("Laden starten lukt niet na 3 pogingen (%s)", self.status["label"])
+                if car.notify:
+                    await self._send(
+                        car.notify,
+                        f"Laden {car.name} start niet",
+                        "Slim laden probeerde 3 keer te starten maar de laadpaal of auto reageert niet "
+                        f"(status: {self.status['label']}). Controleer de auto of start handmatig.",
+                    )
+            return
         restartable = (CAT_CONNECTED, CAT_PAUSED) + ((CAT_FINISHED,) if self.data["smart"].get("stopped_by_us") else ())
         if desired and cat in restartable and self.can_start:
             await self._activate(True)
@@ -694,7 +713,9 @@ class EVChargeManager:
             return  # dubbel commando binnen 15 s negeren
         self._last_command = dt_util.now()
         self._attempts += 1
-        self.data["smart"]["stopped_by_us"] = not start
+        if not start:
+            # pas wissen als er echt weer geladen wordt (zie _handle_status)
+            self.data["smart"]["stopped_by_us"] = True
         self._save()
         self._last_command_kind = "start" if start else "stop"
         _LOGGER.debug("%s laden via %s.%s(%s)", "Start" if start else "Stop", domain, service, eid)
@@ -702,6 +723,15 @@ class EVChargeManager:
             await self.hass.services.async_call(domain, service, {"entity_id": eid}, blocking=True)
         except Exception:  # noqa: BLE001
             _LOGGER.warning("%s.%s op %s mislukt", domain, service, eid, exc_info=True)
+        car_eid = self.car.charge_entity
+        if start and car_eid:
+            # sommige auto's (Tesla) hervatten niet vanzelf: vraag de auto zelf om te laden
+            cdomain = car_eid.split(".", 1)[0]
+            csvc = "press" if cdomain in ("button", "input_button") else "turn_on"
+            try:
+                await self.hass.services.async_call(cdomain, csvc, {"entity_id": car_eid}, blocking=False)
+            except Exception:  # noqa: BLE001
+                _LOGGER.warning("Laden starten via de auto (%s) mislukt", car_eid, exc_info=True)
 
     # ------------------------------------------------------------ publieke API
     async def async_start(self) -> None:
